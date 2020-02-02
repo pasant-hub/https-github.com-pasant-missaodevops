@@ -1,0 +1,28 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend-user
+  labels:
+    app: backend-user
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: backend-user
+  template:
+    metadata:
+      labels:
+        app: backend-user
+    spec:
+      containers:
+      - name: frontend
+        image: jefersonaraujo/backend-user:alpha
+        ports:
+        - containerPort: 3020
+        env:
+        - name: NODE_ENV
+          value: "staging"
+        - name: mongoURI
+          value: "mongodb+srv://htools:MjQwtTGsJVcPbH4@cluster0-bvzxn.mongodb.net/test?retryWrites=true&w=majority"
+        - name: secretOrKey
+          value: "bootcamping"
