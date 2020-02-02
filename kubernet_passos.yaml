@@ -1,0 +1,560 @@
+#INSTALAÇÃO 
+
+->DOCKER 
+sudo apt-get install -y apt-transport-https ca-certificates curl software-properties-common
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
+sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable"
+sudo apt-get update
+sudo apt-get install -y docker-ce=18.06.1~ce~3-0~ubuntu
+sudo usermod -aG docker $USER
+
+
+-> kubernetes
+sudo apt-get update && sudo apt-get install -y apt-transport-https curl
+curl -s https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo apt-key add -
+cat <<EOF | sudo tee /etc/apt/sources.list.d/kubernetes.list
+deb https://apt.kubernetes.io/ kubernetes-xenial main
+EOF
+sudo apt-get update
+sudo apt-get install -y kubelet kubeadm kubectl
+sudo apt-mark hold kubelet kubeadm kubectl
+
+systemctl daemon-reload
+systemctl restart kubelet
+
+-----------------------------------------------------------------------------------------------
+
+INICIANDO CLUSTER 
+sudo kubeadm init --pod-network-cidr=10.244.0.0/16
+
+SE DER ISSO :
+[WARNING IsDockerSystemdCheck]: detected "cgroupfs" as the Docker cgroup driver. The recommended driver is "systemd". Please follow the guide at https://kubernetes.io/docs/setup/cri/
+cat > /etc/docker/daemon.json <<EOF
+{
+  "exec-opts": ["native.cgroupdriver=systemd"],
+  "log-driver": "json-file",
+  "log-opts": {
+    "max-size": "100m"
+  },
+  "storage-driver": "overlay2"
+}
+EOF
+
+mkdir -p /etc/systemd/system/docker.service.d
+
+# Restart docker.
+systemctl daemon-reload
+systemctl restart docker
+
+-----------------
+
+ mkdir -p $HOME/.kube
+  sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
+  sudo chown $(id -u):$(id -g) $HOME/.kube/config
+
+   kubectl cluster-info
+-----------------
+FLANNEL
+sysctl net.bridge.bridge-nf-call-iptables=1
+
+For Kubernetes v1.7+ 
+kubectl apply -f https://raw.githubusercontent.com/coreos/flannel/master/Documentation/kube-flannel.yml
+
+
+Para permitir master execução 
+kubectl taint nodes --all node-role.kubernetes.io/master-
+
+Criando deploy | Serviço
+kubectl run kubernetes-bootcamp --image=gcr.io/google-samples/kubernetes-bootcamp:v1 --port=8080
+kubectl get deploy
+NAME                  READY   UP-TO-DATE   AVAILABLE   AGE
+kubernetes-bootcamp   1/1     1            1           50s
+
+
+Test rapido 
+kubectl proxy
+curl http://localhost:8001/
+
+curl http://localhost:8001/api/v1/namespaces/default/pods/kubernetes-bootcamp-765bf4c7b4-6c8lq/proxy/
+Hello Kubernetes bootcamp! | Running on: kubernetes-bootcamp-765bf4c7b4-6c8lq | v=1
+
+
+-------------------------------------------------------------------------------------
+Deploy via Arquivo Estruturado (YAML)
+Essa nossa execução, gerou em nosso cluster um recurso estruturado, podemos acessá-lo através de:
+kubectl get deploy kubernetes-bootcamp -o yaml
+Ou até mesmo editá-lo em tempo real:
+kubectl edit deploy kubernetes-bootcamp
+
+----------------------------------------------------------------------------------------------
+
+Dashboard kubernetes
+#ADD 
+kubectl apply -f https://raw.githubusercontent.com/kubernetes/dashboard/v2.0.0-rc2/aio/deploy/recommended.yaml
+
+Deixar disponivel porta 
+
+kubectl expose deployment kubernetes-dashboard --name=kubernetes-dashboard-nodeport --port=443 --target-port=8443 --type=NodePort -n kubernetes-dashboard
+
+Criando Service Account e associando permissao 'cluster-admin'
+kubectl create serviceaccount kubeadmin -n kube-system
+kubectl create clusterrolebinding kubeadmin-binding --clusterrole=cluster-admin --serviceaccount=kube-system:kubeadmin
+------------------------------------------------------------------------------------
+-> Verificando usuario criado 
+
+kubectl describe sa kubeadmin -n kube-system
+
+---------------------------------------------------------------
+Pegando secret para acesso dashboard
+-> Você pode pegar abrindo o arquivo de conf do yaml e pegar o token para conveter para base64 com comandos abaixo :
+-->kubectl get secret kubeadmin-token-6wn5m -n kubernetes-dashboard -o yaml
+-- >echo `echo <TOKEN> | base64 --decode`
+
+Também pode execultar esse comando abaixo que ja extrai 
+kubectl -n kube-system describe secret kubeadmin-token-6wn5m  -n kube-system
+
+
+Data
+====
+token:      eyJhbGciOiJSUzI1NiIsImtpZCI6IkdlOHN3Rko3TTRuN0tVOHQtT2g1cjktcDRjeEZZYzBmOVh5dEJnZ0RPY1kifQ.eyJpc3MiOiJrdWJlcm5ldGVzL3NlcnZpY2VhY2NvdW50Iiwia3ViZXJuZXRlcy5pby9zZXJ2aWNlYWNjb3VudC9uYW1lc3BhY2UiOiJrdWJlLXN5c3RlbSIsImt1YmVybmV0ZXMuaW8vc2VydmljZWFjY291bnQvc2VjcmV0Lm5hbWUiOiJrdWJlYWRtaW4tdG9rZW4tNnduNW0iLCJrdWJlcm5ldGVzLmlvL3NlcnZpY2VhY2NvdW50L3NlcnZpY2UtYWNjb3VudC5uYW1lIjoia3ViZWFkbWluIiwia3ViZXJuZXRlcy5pby9zZXJ2aWNlYWNjb3VudC9zZXJ2aWNlLWFjY291bnQudWlkIjoiMWFlOTNiYTItOGRlYS00NjRkLWI5N2UtMWE1ZTZmMzY0MzViIiwic3ViIjoic3lzdGVtOnNlcnZpY2VhY2NvdW50Omt1YmUtc3lzdGVtOmt1YmVhZG1pbiJ9.mZUQ_4kMo1MLQ2PExHWLKy3cd_CE2k4dGfjhF7CNN4furWbwQS3rtzykgCong3V6_KdT-iIPsLWDaZ9EfDaj61N7k1fnBWzuitQmnLA3apbFbvU1dWZF-rCkk6BW92vGzeCpNBBmlqLy4SDaJMRLZzn6iIT40xjZ5JIqHWfVT8hW1EfIlXrBSDpJYxu96MO-z6cMfbqllTCCo4NFs8_niregfBJpU7EyJCtT0MIjZILlzTO31L7b7RIFEhVZT2hPMOVkJCPTof6_-qBpFDMYwdYiQQ_ZKpCoFnfmVFieXLlu9OHiy4F0WmOi3BCbhqnw7yxLSIUSPU7R3a7iIhRqwA
+ca.crt:     1025 bytes
+
+------------------------------------------------------------------------------------------------------------------------------
+Criando namespaces
+ns.yaml
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: staging
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: prod
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: devops
+
+
+kubectl apply -f ns.yaml 
+namespace/staging created
+namespace/prod created
+namespace/devops created
+
+kubectl get ns
+NAME                   STATUS   AGE
+default                Active   112m
+devops                 Active   25s
+kube-node-lease        Active   112m
+kube-public            Active   112m
+kube-system            Active   112m
+kubernetes-dashboard   Active   46m
+prod                   Active   25s
+staging                Active   25s
+
+--------------------------------------------------------------------------------
+
+
+
+
+
+
+
+kubectl apply -f <filename> : Aplica um arquivo de configuração ao server.
+kubectl get all --all-namespaces : Lista todos recursos em todos namespaces.
+
+
+kubectl get  pods --all-namespaces
+
+kubectl get  all --all-namespaces
+kubectl apply -f https://raw.githubusercontent.com/kubernetes/dashboard/v1.10.1/src/deploy/recommended/kubernetes-dashboard.yaml
+error
+kubectl apply -f https://raw.githubusercontent.com/kubernetes/dashboard/v2.0.0-beta4/aio/deploy/recommended.yaml
+
+kubectl describe pod/kubernetes-dashboard-7c54d59f66-sgdk5 -n kube-system
+
+
+
+kubectl expose deployment kubernetes-dashboard --name=kubernetes-dashboard-nodeport --port=443 --target-port=8443 --type=NodePort -n kube-system
+
+
+http://ec2-18-208-145-132.compute-1.amazonaws.com:32400/
+
+
+
+ubectl describe sa kubernetes-dashboard  -n kube-system
+Name:                kubernetes-dashboard
+Namespace:           kube-system
+Labels:              k8s-app=kubernetes-dashboard
+Annotations:         kubectl.kubernetes.io/last-applied-configuration:
+                       {"apiVersion":"v1","kind":"ServiceAccount","metadata":{"annotations":{},"labels":{"k8s-app":"kubernetes-dashboard"},"name":"kubernetes-das...
+Image pull secrets:  <none>
+Mountable secrets:   kubernetes-dashboard-token-qnpnf
+Tokens:              kubernetes-dashboard-token-qnpnf
+Events:              <none>
+
+
+kubectl get secret kubernetes-dashboard-token-qnpnf -n kube-system -o yaml
+
+apiVersion: v1
+data:
+  ca.crt: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSUN5RENDQWJDZ0F3SUJBZ0lCQURBTkJna3Foa2lHOXcwQkFRc0ZBREFWTVJNd0VRWURWUVFERXdwcmRXSmwKY201bGRHVnpNQjRYRFRJd01ERXlOVEU1TkRNME9Wb1hEVE13TURFeU1qRTVORE0wT1Zvd0ZURVRNQkVHQTFVRQpBeE1LYTNWaVpYSnVaWFJsY3pDQ0FTSXdEUVlKS29aSWh2Y05BUUVCQlFBRGdnRVBBRENDQVFvQ2dnRUJBTUtXCnMxeStpVDRyVWd4Qm9qN2ZNdEdnaWJVNFNtQjY3d2J0bklYTWVWVVJSTGxpM3V0ZGhCdFNON0hPSnRiaC9hVDkKTTY0eGNjQ01TdDJIVlQwcFBOWlpxQVlFVzlSVHdOSGpmT2ZPc2dqZXNKUDRkaXozZGRZMC92aDZxdWYrUExLeQplaDBYM0JtYVNHSTFsZEJKM1ppYzY1TTdhODRuZ0JhVXhwTmhRY21KaWZ1MlZhNDJqZmhyb1ZSVlIycDdFWUNzCjhyUE1YQ05Bd2tWOFFUNDB5cGFBTzBodE96VVY4eFNEUUJOZ1hLQUhOREtxWkN0eTFnNlVZZ1dXT1doOERYNzAKdFd2Qjg1dGdMaUd1cDlhVXpJQ2IxN0prdzNQa0ppQ2wxUTE1RXMydlRrSDhJK2ppK093V2s0c2M4K2JqNG5VVQpzYmJ3Z3YzOUVDM3Z4MEhNTnJjQ0F3RUFBYU1qTUNFd0RnWURWUjBQQVFIL0JBUURBZ0trTUE4R0ExVWRFd0VCCi93UUZNQU1CQWY4d0RRWUpLb1pJaHZjTkFRRUxCUUFEZ2dFQkFKU3RhN3VHa2k5U2lOQ0NlZi9rc3M0NWhYMCsKRWRheUtiYWxXeDNqNU9lY1JyUEFFNEM5bzl6aElmVTJKRjRBKzFLMFBWajZUV0x3TDhUcGNhcDVRMUh4WnUyagp5TXhUdy9tSkV5cVE0dlQ3SzVXbWxtUWVhVXhvRnlFbm1kWFlkSFlza2JGd0V6S0ZBcjYrTzRyclByRk5TVXlnCjk0czdhN0I1YlRENW1uTTh6dDRBWXRSTnJyV2lEYmgySDg2WVo4enpEZU9wMGZndTE0cUFNV1MzNEhTd08rWDkKNVhnOW1kSS9oMnlnQkQyUU8yTm9tYVdJYVdwdTNMa1ViZEFENTB5VDhOWS80a3FsNGR2cHRjZm5tdTlXYTluVQpZM2pCWWpROHc0M1hkWUtQd0FhQURIcVNRU0syNzNGdFdmUUROQ01hYXNSdldFbFBFZ1JuK3ljejRJVT0KLS0tLS1FTkQgQ0VSVElGSUNBVEUtLS0tLQo=
+  namespace: a3ViZS1zeXN0ZW0=
+  token: ZXlKaGJHY2lPaUpTVXpJMU5pSXNJbXRwWkNJNkltWm9aa2hqUjNvNWRqQmlPWEZIUkZodVJtYzBXWEJWY2xsNVkzbEpOREpSUW5GZmExbEJZMmRDVUhjaWZRLmV5SnBjM01pT2lKcmRXSmxjbTVsZEdWekwzTmxjblpwWTJWaFkyTnZkVzUwSWl3aWEzVmlaWEp1WlhSbGN5NXBieTl6WlhKMmFXTmxZV05qYjNWdWRDOXVZVzFsYzNCaFkyVWlPaUpyZFdKbExYTjVjM1JsYlNJc0ltdDFZbVZ5Ym1WMFpYTXVhVzh2YzJWeWRtbGpaV0ZqWTI5MWJuUXZjMlZqY21WMExtNWhiV1VpT2lKcmRXSmxjbTVsZEdWekxXUmhjMmhpYjJGeVpDMTBiMnRsYmkxeGJuQnVaaUlzSW10MVltVnlibVYwWlhNdWFXOHZjMlZ5ZG1salpXRmpZMjkxYm5RdmMyVnlkbWxqWlMxaFkyTnZkVzUwTG01aGJXVWlPaUpyZFdKbGNtNWxkR1Z6TFdSaGMyaGliMkZ5WkNJc0ltdDFZbVZ5Ym1WMFpYTXVhVzh2YzJWeWRtbGpaV0ZqWTI5MWJuUXZjMlZ5ZG1salpTMWhZMk52ZFc1MExuVnBaQ0k2SW1RNU1UVXpNamM0TFRNNE5qSXROREZoWmkwNU1EaGtMVGMzWmpJeFpqTTVPV1psWVNJc0luTjFZaUk2SW5ONWMzUmxiVHB6WlhKMmFXTmxZV05qYjNWdWREcHJkV0psTFhONWMzUmxiVHByZFdKbGNtNWxkR1Z6TFdSaGMyaGliMkZ5WkNKOS5hUTRGRkk0S25NaXk3NHA3RWdZOFlkd3NtdzdLRFI3ZVBXdDRUWlNKQW9ncVZScHZOLU9zTlZudmlXdWJxYmE1dlE4bTNPSlduM25pcHJYa28yMGJVaGNhQUYyVWlkbExIOFBzTG51VkZ6Tm1QSXlHTWlrNFJrUm15cGhLZ3MwZTVXY0VXa3JWandtT1VHUEoxR2otS25fZF9ITjJLZFdFczFEV1RpWk95b1FJZDVTMEljZGxHWmVWdjJvcmVscnRIRzdZeE9EUjlUZnVZX3lhMVZNRnBtWFp4MWFuVC0xNzc2V2IxdER4X18zOFFiNkxBYTcyQ1pOa3FVMmp3VEtBMXluajR0X1Jpd01uX3VXeElfczRjQ1JwZURHVFZyVmRFOGx2Sk5hMlVSR3JZemVOQ3Q3bkFqa0pkaDM4bHhJOEh6Q0hJSUJpVWxNUWI0bm5UR2hLRXc=
+kind: Secret
+metadata:
+  annotations:
+    kubernetes.io/service-account.name: kubernetes-dashboard
+    kubernetes.io/service-account.uid: d9153278-3862-41af-908d-77f21f399fea
+  creationTimestamp: "2020-01-25T20:49:30Z"
+  name: kubernetes-dashboard-token-qnpnf
+  namespace: kube-system
+  resourceVersion: "9027"
+  selfLink: /api/v1/namespaces/kube-system/secrets/kubernetes-dashboard-token-qnpnf
+  uid: 1e6978c1-6f4f-49eb-90bb-8043ecdf946b
+type: kubernetes.io/service-account-token
+
+
+
+
+echo ZXlKaGJHY2lPaUpTVXpJMU5pSXNJbXRwWkNJNkltWm9aa2hqUjNvNWRqQmlPWEZIUkZodVJtYzBXWEJWY2xsNVkzbEpOREpSUW5GZmExbEJZMmRDVUhjaWZRLmV5SnBjM01pT2lKcmRXSmxjbTVsZEdWekwzTmxjblpwWTJWaFkyTnZkVzUwSWl3aWEzVmlaWEp1WlhSbGN5NXBieTl6WlhKMmFXTmxZV05qYjNWdWRDOXVZVzFsYzNCaFkyVWlPaUpyZFdKbExYTjVjM1JsYlNJc0ltdDFZbVZ5Ym1WMFpYTXVhVzh2YzJWeWRtbGpaV0ZqWTI5MWJuUXZjMlZqY21WMExtNWhiV1VpT2lKcmRXSmxjbTVsZEdWekxXUmhjMmhpYjJGeVpDMTBiMnRsYmkxeGJuQnVaaUlzSW10MVltVnlibVYwWlhNdWFXOHZjMlZ5ZG1salpXRmpZMjkxYm5RdmMyVnlkbWxqWlMxaFkyTnZkVzUwTG01aGJXVWlPaUpyZFdKbGNtNWxkR1Z6TFdSaGMyaGliMkZ5WkNJc0ltdDFZbVZ5Ym1WMFpYTXVhVzh2YzJWeWRtbGpaV0ZqWTI5MWJuUXZjMlZ5ZG1salpTMWhZMk52ZFc1MExuVnBaQ0k2SW1RNU1UVXpNamM0TFRNNE5qSXROREZoWmkwNU1EaGtMVGMzWmpJeFpqTTVPV1psWVNJc0luTjFZaUk2SW5ONWMzUmxiVHB6WlhKMmFXTmxZV05qYjNWdWREcHJkV0psTFhONWMzUmxiVHByZFdKbGNtNWxkR1Z6TFdSaGMyaGliMkZ5WkNKOS5hUTRGRkk0S25NaXk3NHA3RWdZOFlkd3NtdzdLRFI3ZVBXdDRUWlNKQW9ncVZScHZOLU9zTlZudmlXdWJxYmE1dlE4bTNPSlduM25pcHJYa28yMGJVaGNhQUYyVWlkbExIOFBzTG51VkZ6Tm1QSXlHTWlrNFJrUm15cGhLZ3MwZTVXY0VXa3JWandtT1VHUEoxR2otS25fZF9ITjJLZFdFczFEV1RpWk95b1FJZDVTMEljZGxHWmVWdjJvcmVscnRIRzdZeE9EUjlUZnVZX3lhMVZNRnBtWFp4MWFuVC0xNzc2V2IxdER4X18zOFFiNkxBYTcyQ1pOa3FVMmp3VEtBMXluajR0X1Jpd01uX3VXeElfczRjQ1JwZURHVFZyVmRFOGx2Sk5hMlVSR3JZemVOQ3Q3bkFqa0pkaDM4bHhJOEh6Q0hJSUJpVWxNUWI0bm5UR2hLRXc= | base64 --decode
+
+
+
+eyJhbGciOiJSUzI1NiIsImtpZCI6ImZoZkhjR3o5djBiOXFHRFhuRmc0WXBVcll5Y3lJNDJRQnFfa1lBY2dCUHcifQ.eyJpc3MiOiJrdWJlcm5ldGVzL3NlcnZpY2VhY2NvdW50Iiwia3ViZXJuZXRlcy5pby9zZXJ2aWNlYWNjb3VudC9uYW1lc3BhY2UiOiJrdWJlLXN5c3RlbSIsImt1YmVybmV0ZXMuaW8vc2VydmljZWFjY291bnQvc2VjcmV0Lm5hbWUiOiJrdWJlcm5ldGVzLWRhc2hib2FyZC10b2tlbi1xbnBuZiIsImt1YmVybmV0ZXMuaW8vc2VydmljZWFjY291bnQvc2VydmljZS1hY2NvdW50Lm5hbWUiOiJrdWJlcm5ldGVzLWRhc2hib2FyZCIsImt1YmVybmV0ZXMuaW8vc2VydmljZWFjY291bnQvc2VydmljZS1hY2NvdW50LnVpZCI6ImQ5MTUzMjc4LTM4NjItNDFhZi05MDhkLTc3ZjIxZjM5OWZlYSIsInN1YiI6InN5c3RlbTpzZXJ2aWNlYWNjb3VudDprdWJlLXN5c3RlbTprdWJlcm5ldGVzLWRhc2hib2FyZCJ9.aQ4FFI4KnMiy74p7EgY8Ydwsmw7KDR7ePWt4TZSJAogqVRpvN-OsNVnviWubqba5vQ8m3OJWn3niprXko20bUhcaAF2UidlLH8PsLnuVFzNmPIyGMik4RkRmyphKgs0e5WcEWkrVjwmOUGPJ1Gj-Kn_d_HN2KdWEs1DWTiZOyoQId5S0IcdlGZeVv2orelrtHG7YxODR9TfuY_ya1VMFpmXZx1anT-1776Wb1tDx__38Qb6LAa72CZNkqU2jwTKA1ynj4t_RiwMn_uWxI_s4cCRpeDGTVrVdE8lvJNa2URGrYzeNCt7nAjkJdh38lxI8HzCHIIBiUlMQb4nnTGhKEw
+
+
+criar usuario
+kubectl create serviceaccount kubeadmin -n kube-system
+
+root@ip-172-31-91-204:/home/ubuntu# kubectl describe sa kubeadm -n kube-system
+Name:                kubeadmin
+Namespace:           kube-system
+Labels:              <none>
+Annotations:         <none>
+Image pull secrets:  <none>
+Mountable secrets:   kubeadmin-token-kvr4b
+Tokens:              kubeadmin-token-kvr4b
+Events:              <none>
+
+permissoes
+
+
+kubectl create clusterrolebinding kubeadmin-binding --clusterrole=cluster-admin --serviceaccount=kube-system:kubeadmin
+kubectl create clusterrolebinding kubeadmin-binding --clusterrole=cluster-admin --serviceaccount=kube-system:kubernetes-dashboard-token-qnpnf
+
+
+kubectl get secret kubeadmin-token-kvr4b -n kube-system -o yaml
+base64
+
+kubectl -n kube-system describe secret kubeadmin-token-kvr4b
+
+eyJhbGciOiJSUzI1NiIsImtpZCI6ImZoZkhjR3o5djBiOXFHRFhuRmc0WXBVcll5Y3lJNDJRQnFfa1lBY2dCUHcifQ.eyJpc3MiOiJrdWJlcm5ldGVzL3NlcnZpY2VhY2NvdW50Iiwia3ViZXJuZXRlcy5pby9zZXJ2aWNlYWNjb3VudC9uYW1lc3BhY2UiOiJrdWJlLXN5c3RlbSIsImt1YmVybmV0ZXMuaW8vc2VydmljZWFjY291bnQvc2VjcmV0Lm5hbWUiOiJrdWJlYWRtaW4tdG9rZW4ta3ZyNGIiLCJrdWJlcm5ldGVzLmlvL3NlcnZpY2VhY2NvdW50L3NlcnZpY2UtYWNjb3VudC5uYW1lIjoia3ViZWFkbWluIiwia3ViZXJuZXRlcy5pby9zZXJ2aWNlYWNjb3VudC9zZXJ2aWNlLWFjY291bnQudWlkIjoiNWRlMDAyODQtYWJhZi00YjI0LTljZTItMzI4MzRjNWM3YjUxIiwic3ViIjoic3lzdGVtOnNlcnZpY2VhY2NvdW50Omt1YmUtc3lzdGVtOmt1YmVhZG1pbiJ9.qJyNUk8zKUqqmzhbLNFGK87plIdMmd3VJfOb-3Wm3J_-e2E6MyJtMmyXQ3Dgs6He_3zTjCFD333zgXOfcAM_Y55aDjYduZfFLr9sLk0kOBxiUemOwRNZo4rWwXRkilNbQl1pG3HuGLhxXzubvGqzHCdfkapX9YYP_MoM2pn8_5Ke9l4blCMu15V-gVuHHeQCQG6ZTde22TLar4-hJtxRU81Lt2efuXMFokWjEQC679wvgEaS57Z2XxB7oYiFGbBtGF-ckSww0YGO_66WQ6iMb2BRZ1Utx7uK1eZS0Si17nfydRrydhC_ea1dco7ETN5f91sM5qnykpGXlohJr3jcMQ
+
+
+
+REMOVENDO POIS O dashboard ESTAVA BUGADO
+kubectl --namespace kube-system get rs
+NAME                 DESIRED   CURRENT   READY   AGE
+coredns-6955765f44   2         2         2       15h
+root@ip-172-31-91-204:/home/ubuntu# kubectl --namespace kube-system get deployment
+NAME      READY   UP-TO-DATE   AVAILABLE   AGE
+coredns   2/2     2            2           15h
+
+
+kubectl delete deployment kubernetes-dashboard --namespace=kube-system
+kubectl delete service kubernetes-dashboard  --namespace=kube-system
+kubectl delete role kubernetes-dashboard-minimal --namespace=kube-system
+kubectl delete rolebinding kubernetes-dashboard-minimal --namespace=kube-system
+kubectl delete sa kubernetes-dashboard --namespace=kube-system
+kubectl delete secret kubernetes-dashboard-certs --namespace=kube-system
+kubectl delete secret kubernetes-dashboard-key-holder --namespace=kube-system
+
+
+kubectl --namespace=kube-system delete deployment,service,role,rolebinding,sa,secret -l k8s-app=kubernetes-dashboard
+
+
+kubectl get deployments -A
+NAMESPACE              NAME                        READY   UP-TO-DATE   AVAILABLE   AGE
+default                kubernetes-bootcamp         1/1     1            1           15h
+kube-system            coredns                     2/2     2            2           15h
+kubernetes-dashboard   dashboard-metrics-scraper   1/1     1            1           10m
+kubernetes-dashboard   kubernetes-dashboard        1/1     1            1           10m
+root@ip-172-31-91-204:/home/ubuntu# kubectl delete deployment kubernetes-dashboard  --namespace=kubernetes-dashboard
+deployment.apps "kubernetes-dashboard" deleted
+root@ip-172-31-91-204:/home/ubuntu# kubectl delete deployment kubernetes-dashboard  --namespace=kubernetes-dashboard
+Error from server (NotFound): deployments.apps "kubernetes-dashboard" not found
+root@ip-172-31-91-204:/home/ubuntu# kubectl delete deployment dashboard-metrics-scraper --namespace=kubernetes-dashboard
+deployment.apps "dashboard-metrics-scraper" deleted
+
+
+kubectl delete service kubernetes-dashboard  --namespace=kubernetes-dashboard
+kubectl delete service dashboard-metrics-scraper  --namespace=kubernetes-dashboard
+
+
+
+kubectl delete sa kubernetes-dashboard --namespace=kubernetes-dashboard
+ kubectl delete secret kubernetes-dashboard-certs --namespace=kubernetes-dashboard
+ kubectl delete secret kubernetes-dashboard-key-holder --namespace=kubernetes-dashboard
+
+
+
+https://stackoverflow.com/questions/46173307/how-do-i-remove-the-kubernetes-dashboard-resources-from-my-deployment-on-google
+
+
+
+#ADD dashboard
+
+kubectl apply -f https://raw.githubusercontent.com/kubernetes/dashboard/v2.0.0-rc2/aio/deploy/recommended.yaml
+
+kubectl describe pod/kubernetes-dashboard-566f567dc7-pgj7p -n kube-system
+
+
+kubectl expose deployment kubernetes-dashboard --name=kubernetes-dashboard-nodeport --port=443 --target-port=8443 --type=NodePort -n kube-system
+
+#namespace agora tem um proprio para o dashboard
+kubectl describe pod/kubernetes-dashboard-566f567dc7-pgj7p -n kubernetes-dashboard
+
+
+kubectl expose deployment kubernetes-dashboard --name=kubernetes-dashboard-nodeport --port=443 --target-port=8443 --type=NodePort -n  kube-system
+
+
+
+kubectl describe sa kubernetes-dashboard -n kubernetes-dashboard
+
+
+kubectl get secret kubernetes-dashboard-token-l9wzz -n kubernetes-dashboard-o yaml
+JA exibe o token decodeficado
+kubectl -n kubernetes-dashboard describe secret kubernetes-dashboard-token-l9wzz
+
+
+# Criando Service Account e associando permissao 'cluster-admin'
+kubectl create serviceaccount kubeadmin -n kube-system 
+#ja existia criei uma nova role
+kubectl create clusterrolebinding kubeadmin-bindingDashboard --clusterrole=cluster-admin --serviceaccount=kube-system:kubeadmin
+
+kubectl describe sa kubeadmin -n kube-system
+Name:                kubeadmin
+Namespace:           kube-system
+Labels:              <none>
+Annotations:         <none>
+Image pull secrets:  <none>
+Mountable secrets:   kubeadmin-token-6wn5m
+Tokens:              kubeadmin-token-6wn5m
+Events:              <none>
+
+
+kubectl -n kube-system describe secret kubeadmin-token-6wn5m
+
+
+https://docs.aws.amazon.com/eks/latest/userguide/dashboard-tutorial.html
+kubectl -n kube-system describe secret $(kubectl -n kube-system get secret | grep eks-admin | awk '{print $1}')
+
+root@ip-172-31-91-204:/home/ubuntu# kubectl -n kube-system describe secret $(kubectl -n kube-system get secret | grep eks-admin | awk '{print $1}')
+Name:         eks-admin-token-k6bc4
+Namespace:    kube-system
+Labels:       <none>
+Annotations:  kubernetes.io/service-account.name: eks-admin
+              kubernetes.io/service-account.uid: f7e9acbd-c61a-422f-8e24-3d9594b7113f
+
+Type:  kubernetes.io/service-account-token
+
+Data
+====
+ca.crt:     1025 bytes
+namespace:  11 bytes
+token:      eyJhbGciOiJSUzI1NiIsImtpZCI6ImZoZkhjR3o5djBiOXFHRFhuRmc0WXBVcll5Y3lJNDJRQnFfa1lBY2dCUHcifQ.eyJpc3MiOiJrdWJlcm5ldGVzL3NlcnZpY2VhY2NvdW50Iiwia3ViZXJuZXRlcy5pby9zZXJ2aWNlYWNjb3VudC9uYW1lc3BhY2UiOiJrdWJlLXN5c3RlbSIsImt1YmVybmV0ZXMuaW8vc2VydmljZWFjY291bnQvc2VjcmV0Lm5hbWUiOiJla3MtYWRtaW4tdG9rZW4tazZiYzQiLCJrdWJlcm5ldGVzLmlvL3NlcnZpY2VhY2NvdW50L3NlcnZpY2UtYWNjb3VudC5uYW1lIjoiZWtzLWFkbWluIiwia3ViZXJuZXRlcy5pby9zZXJ2aWNlYWNjb3VudC9zZXJ2aWNlLWFjY291bnQudWlkIjoiZjdlOWFjYmQtYzYxYS00MjJmLThlMjQtM2Q5NTk0YjcxMTNmIiwic3ViIjoic3lzdGVtOnNlcnZpY2VhY2NvdW50Omt1YmUtc3lzdGVtOmVrcy1hZG1pbiJ9.V2IjXreE7qRROKP8PyUr6XeaPIe0QQuMfF1Do-Kuq-tunauWmo6r-JQTuDc1oV0hP7-bLbviyis55eqY4Bx7AV2kWnNpUeIbISHqnaVNPC5kQjXOjgdeG8Y0krKDvmV34GcCXovMxCXMGdNu8g3_do7OYqCyrnxB9XfjjM34qcTJnmGGrht7f703l3mXsyUme9_kZ7nEF8zZQRID24XAmIvicGAYKbjpucsF1CmPmE7HDltx1qoljPrGXeialDx3jrYBEG_t5_aHDnscDUOIGHu2vy6JyOIxpYafcDAPBlRkFjavp0TT5DFU5urDcZ2Mjrz_ea8LHs88u5WhI-dUHQ
+
+
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: staging
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: prod
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: devops
+
+
+
+  kubectl apply -f ns.yaml
+
+--------------------------------------------------------------------
+
+--deployment
+
+controllers/nginx-deployment.yaml
+
+kubectl apply -f 02-frondend-deploy.yaml --namespace staging
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend
+  labels:
+    app: frontend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: frontend
+  template:
+    metadata:
+      labels:
+        app: frontend
+    spec:
+      containers:
+      - name: frontend
+        image: jefersonaraujo/frontend:alpha
+        ports:
+        - containerPort: 80
+
+
+kubectl apply -f 02-frondend-services.yaml  
+--services
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend
+spec:
+  type: NodePort
+  selector:
+    app: frontend
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 80
+      nodePort: 30080
+
+
+
+--services user
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend-user
+spec:
+  type: NodePort
+  selector:
+    app: backend-user
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 3200
+
+kubectl apply -f 03-backend-user-services.yaml --namespace staging
+
+
+
+-- deployment backend-user
+
+
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend-user
+  labels:
+    app: backend-user
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: backend-user
+  template:
+    metadata:
+      labels:
+        app: backend-user
+    spec:
+      containers:
+      - name: frontend
+        image: jefersonaraujo/backend-user:alpha
+        ports:
+        - containerPort: 3020
+        env:
+        - name: NODE_ENV
+          value: "staging"
+        - name: mongoURI
+          value: "mongodb+srv://htools:MjQwtTGsJVcPbH4@cluster0-bvzxn.mongodb.net/test?retryWrites=true&w=majority"
+        - name: secretOrKey
+          value: "bootcamping"
+
+
+
+
+--services scm
+
+--services
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend-scm
+spec:
+  type: NodePort
+  selector:
+    app: backend-scm
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 3030
+
+---deployment backend scm
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend-scm
+  labels:
+    app: backend-scm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: backend-scm
+  template:
+    metadata:
+      labels:
+        app: backend-scm
+    spec:
+      containers:
+      - name: backend-scm
+        image: jefersonaraujo/backend-scm:alpha
+        ports:
+        - containerPort: 3030
+        env:
+        - name: NODE_ENV
+          value: "staging"
+        - name: clientId
+          value: "a1219804f0a9437bc318"
+        - name: clientSecret
+          value: "c71ae1bc4ed872625b24b11307c1ec4fc2975047"
+        - name: secretOrKey
+          value: "bootcamping"
+
+
+
+          kubectl scale deployment  --replicas=1 frontend
+          kubectl scale deployment  --replicas=1 backend-user -n staging
+          kubectl scale deployment  --replicas=0 backend-user -n staging
+          kubectl scale deployment  --replicas=0 kubernetes-dashboard -n kubernetes-dashboard
+
+          kubectl get deployments -A
+
+kubectl autoscale deployment frontend --cpu-percent=10 --min=1 --max=2
+kubectl autoscale deployment kubernetes-bootcamp --cpu-percent=10 --min=1 --max=2
+kubectl autoscale deployment backend-user  --cpu-percent=10 --min=1 --max=2 -n staging
+kubectl autoscale deployment dashboard-metrics-scraper  --cpu-percent=10 --min=1 --max=2 -n kubernetes-dashboard
+kubectl autoscale deployment kubernetes-dashboard  --cpu-percent=10 --min=1 --max=2 -n kubernetes-dashboard
+kubectl delete deploy backend-user -n staging
