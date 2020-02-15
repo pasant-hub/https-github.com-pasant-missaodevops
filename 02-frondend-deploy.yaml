@@ -16,6 +16,6 @@ spec:
     spec:
       containers:
       - name: frontend
-        image: jefersonaraujo/frontend:alpha
+        image: jefersonaraujo/frontend:1.0-staging
         ports:
         - containerPort: 80
