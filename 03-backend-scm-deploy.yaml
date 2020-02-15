@@ -1,0 +1,30 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend-scm
+  labels:
+    app: backend-scm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: backend-scm
+  template:
+    metadata:
+      labels:
+        app: backend-scm
+    spec:
+      containers:
+      - name: backend-scm
+        image: jefersonaraujo/backend-scm:alpha
+        ports:
+        - containerPort: 3030
+        env:
+        - name: NODE_ENV
+          value: "staging"
+        - name: clientId
+          value: "a1219804f0a9437bc318"
+        - name: clientSecret
+          value: "c71ae1bc4ed872625b24b11307c1ec4fc2975047"
+        - name: secretOrKey
+          value: "bootcamping"

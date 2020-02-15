@@ -19,7 +19,7 @@ spec:
         image: jefersonaraujo/backend-user:alpha
         ports:
         - containerPort: 3020
-        env:
+        env:     
         - name: NODE_ENV
           value: "staging"
         - name: MONGO_URI
