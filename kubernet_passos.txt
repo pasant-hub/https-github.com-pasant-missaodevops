@@ -156,7 +156,8 @@ prod                   Active   25s
 staging                Active   25s
 
 --------------------------------------------------------------------------------
-
+Docker recriando build com paramentros
+docker build -t jefersonaraujo/frontend:1.0-staging  --build-arg NPM_ENV=staging .
 
 
 

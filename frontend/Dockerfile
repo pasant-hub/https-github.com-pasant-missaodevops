@@ -1,5 +1,5 @@
 FROM node:8 as builder
-ARG NPM_ENV=
+ARG NPM_ENV=development
 WORKDIR /usr/src/app
 COPY package*.json ./
 RUN npm install
