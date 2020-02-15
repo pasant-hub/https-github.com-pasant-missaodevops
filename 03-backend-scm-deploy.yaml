@@ -22,9 +22,9 @@ spec:
         env:
         - name: NODE_ENV
           value: "staging"
-        - name: clientId
+        - name: GITHUB_CLIENT_ID
           value: "a1219804f0a9437bc318"
-        - name: clientSecret
+        - name: GITHUB_CLIENT_SECRET
           value: "c71ae1bc4ed872625b24b11307c1ec4fc2975047"
-        - name: secretOrKey
+        - name: SECRET_OR_KEY
           value: "bootcamping"
