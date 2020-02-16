@@ -25,8 +25,14 @@ spec:
             configMapKeyRef:
               name: questcode
               key: NODE_ENV
-        - name: MONGO_URI
-          value: "mongodb+srv://htools:MjQwtTGsJVcPbH4@cluster0-bvzxn.mongodb.net/test?retryWrites=true&w=majority"
-        - name: bW9uZ29kYitzcnY6Ly9odG9vbHM6TWpRd3RUR3NKVmNQYkg0QGNsdXN0ZXIwLWJ2enhuLm1vbmdvZGIubmV0L3Rlc3Q/cmV0cnlXcml0ZXM9dHJ1ZSZ3PW1ham9yaXR5
-          value: "bootcamping"
+        - name: MONGO_URI          
+          valueFrom:
+            secretKeyRef:
+              name: questcode
+              key: MONGO_URI
+        - name: SECRET_OR_KEY          
+          valueFrom:
+            secretKeyRef:
+              name: questcode
+              key: SECRET_OR_KEY              
 

@@ -213,7 +213,9 @@ echo Ym9vdGNhbXBpbmc= | base64 --decode
  GITHUB_CLIENT_ID :  a1219804f0a9437bc318
  GITHUB_CLIENT_SECRET : c71ae1bc4ed872625b24b11307c1ec4fc2975047
 
-## DOCKER
+ 
+ kubectl describe pod backend-scm -n staging
+ kubectl logs backend-scm-7cc775559d-nnt25 -n staging
 
 
 
