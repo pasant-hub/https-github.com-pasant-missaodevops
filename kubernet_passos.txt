@@ -190,9 +190,30 @@ data:
 
 
 --------------------------------------------------------------------
+#ADD  ConfigMap no backend-user
+env:     
+        - name: NODE_ENV          
+          valueFrom:
+            configMapKeyRef:
+              name: questcode
+              key: NODE_ENV
+--------------------------------------------------------------------
+## ADD secret + ConfigMap
+1. ConfigMap : NODE_ENV + GITHUB_CLIENT_ID 
+2. Secret : GITHUB_CLIENT_SECRET + SECRET_OR_KEY + MONGO_URI
 
+## Encode e decode
 
+echo -n 'bootcamping' | tr -d \\n | base64 -w 0
+Ym9vdGNhbXBpbmc=
 
+echo Ym9vdGNhbXBpbmc= | base64 --decode
+
+## Github
+ GITHUB_CLIENT_ID :  a1219804f0a9437bc318
+ GITHUB_CLIENT_SECRET : c71ae1bc4ed872625b24b11307c1ec4fc2975047
+
+## DOCKER
 
 
 
