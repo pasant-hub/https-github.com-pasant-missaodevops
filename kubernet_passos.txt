@@ -254,6 +254,35 @@ deployment.apps/tiller-deploy patched
  helm repo list
 helm create frontend
 
+helm install . --name frontend
+NAME:   frontend
+LAST DEPLOYED: Mon Mar  2 18:56:02 2020
+NAMESPACE: default
+STATUS: DEPLOYED
+
+RESOURCES:
+==> v1/Deployment
+NAME      AGE
+frontend  1s
+
+==> v1/Pod(related)
+NAME                       AGE
+frontend-67d848d866-629pz  1s
+
+==> v1/Service
+NAME      AGE
+frontend  1s
+
+==> v1/ServiceAccount
+NAME      AGE
+frontend  1s
+
+
+NOTES:
+1. Get the application URL by running these commands:
+  export NODE_PORT=$(kubectl get --namespace default -o jsonpath="{.spec.ports[0].nodePort}" services frontend)
+  export NODE_IP=$(kubectl get nodes --namespace default -o jsonpath="{.items[0].status.addresses[0].address}")
+  echo http://$NODE_IP:$NODE_PORT
 
 
 ##Jenkinks
