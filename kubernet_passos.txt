@@ -252,6 +252,8 @@ deployment.apps/tiller-deploy patched
 --> Charts
  helm repo update
  helm repo list
+helm create frontend
+
 
 
 ##Jenkinks
