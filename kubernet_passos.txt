@@ -285,6 +285,9 @@ NOTES:
   echo http://$NODE_IP:$NODE_PORT
 
 
+
+
+
 ##Jenkinks
  Para instalar o Jenkinks anotei os seguintes passos:
 
