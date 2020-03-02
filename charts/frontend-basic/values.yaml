@@ -1,0 +1,5 @@
+image:
+  repository: jefersonaraujo/frontend
+  tag: 1.0-staging
+service:
+  nodePort: 30888
