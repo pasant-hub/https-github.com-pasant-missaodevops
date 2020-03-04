@@ -284,9 +284,30 @@ NOTES:
   export NODE_IP=$(kubectl get nodes --namespace default -o jsonpath="{.items[0].status.addresses[0].address}")
   echo http://$NODE_IP:$NODE_PORT
 
+------- Chachartmuseumrts
+helm install --name helm --namespace devops -f 02-chartmuseum-conf.yaml stable/chartmuseum
+helm repo add questcode http://$(kubectl get nodes --namespace devops -o jsonpath="{.items[0].status.addresses[0].address}"):30010
 
+plugin para ajudar publicar mais rapido
+helm plugin install https://github.com/chartmuseum/helm-push
 
+#lint verifica se há error
+helm lint backend-scm/
+helm push backend-scm/ questcode
 
+helm lint backend-user/
+helm push backend-user/ questcode
+
+helm lint frontend/
+helm push frontend/ questcode
+
+helm repo update
+
+Depois de remover -purge
+
+helm install questcode/frontend --namespace staging --name staging-frontend
+helm install questcode/backend-scm --namespace staging --name staging-backend-scm
+helm install questcode/backend-user   --namespace staging --name staging-backend-user
 
 ##Jenkinks
  Para instalar o Jenkinks anotei os seguintes passos:
