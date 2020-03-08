@@ -1,0 +1,28 @@
+---
+kind: PersistentVolume
+apiVersion: v1
+metadata:
+  name: jenkins-pv
+  labels:
+    type: local
+spec:
+  storageClassName: manual-for-jenkins-pv
+  capacity:
+    storage: 16Gi
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: "/mnt/data-jenkins"
+---
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: jenkins-pv
+  namespace: devops
+spec:
+  storageClassName: manual-for-jenkins-pv
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 16Gi
