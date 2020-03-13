@@ -11,19 +11,32 @@ podTemplate(
     volumes: [hostPathVolume(hostPath: '/var/run/docker.sock', mountPath: '/var/run/docker.sock')],
 ) {
     node('questcode') {
-        def repos
+        def REPOS
+        def IMAGE_VERSION ="0.1.4"
+        def IMAGE_POSFIX = ""
+        def KUBE_NAMESPACE
+        def IMAGE_NAME = "questcode-frontend"
+        def ENVIRONMENT = "staging"
+        def GIT_REPOS_URL = "https://github.com/jefersonaraujo/missaodevops.git"
+        def GIT_BRANCH 
+        def HELM_CHART_NAME = "questcode/frontend"
+        def HELM_DEPLOY_NAME
+        def CHARTMUSEUM_URL = "http://helm-chartmuseum:8080"
+        def INGRESS_HOST = "questcode.org"
+
         stage('Checkout') {
             echo "Inicializando Clone do Repositorio"
-            repos = git credentialsId: 'Github', url: 'https://github.com/jefersonaraujo/missaodevops.git'
-            echo repos.toString()          
+            REPOS = git credentialsId: 'Github', url: GIT_REPOS_URL     
+            //IMAGE_VERSION = sh returnStdout: true, script: 'sh ./frontend/read-package-version.sh'
+            //IMAGE_VERSION = IMAGE_VERSION.trim() + IMAGE_POSFIX          
         }
         stage('Package') {
             container('docker-container') {                
                 echo "Inicializando empacotamento com Docker"
                 withCredentials([usernamePassword(credentialsId: 'dockerhub', passwordVariable: 'DOCKER_HUB_PASSWORD', usernameVariable: 'DOCKER_HUB_USER')]) {
                       sh "docker login -u ${DOCKER_HUB_USER} -p ${DOCKER_HUB_PASSWORD}"
-                      sh "docker build -t jefersonaraujo/questcode-frontend:0.1.4 ./frontend --build-arg NPM_ENV='staging'  "
-                      sh "docker push jefersonaraujo/questcode-frontend:0.1.4"       
+                      sh "docker build -t ${DOCKER_HUB_USER}/${IMAGE_NAME}:${IMAGE_VERSION} ./frontend --build-arg NPM_ENV='${ENVIRONMENT}'"
+                      sh "docker push ${DOCKER_HUB_USER}/${IMAGE_NAME}:${IMAGE_VERSION}"       
                 }
               
                
@@ -31,13 +44,13 @@ podTemplate(
         }
         stage('Deploy') {
             container('helm-container') {
-                echo "Inicializando Deploy com Helm"
-                sh 'ls -ltra'
-                sh 'helm init --client-only'
-                sh 'helm repo add questcode http://helm-chartmuseum:8080'               
-                sh 'helm search questcode'
-                sh 'helm repo update'
-                sh 'helm upgrade staging-frontend questcode/frontend --set image.tag=0.1.4'
+                echo "Inicializando Deploy com Helm"                
+                sh """
+                    helm init --client-only
+                    helm repo add questcode ${CHARTMUSEUM_URL}
+                    helm repo update
+                    helm upgrade staging-frontend questcode/frontend --set image.tag=${IMAGE_VERSION}
+                """              
 
             }
    
