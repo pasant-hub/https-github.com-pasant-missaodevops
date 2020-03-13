@@ -22,8 +22,8 @@ podTemplate(
                 echo "Inicializando empacotamento com Docker"
                 withCredentials([usernamePassword(credentialsId: 'dockerhub', passwordVariable: 'DOCKER_HUB_PASSWORD', usernameVariable: 'DOCKER_HUB_USER')]) {
                       sh "docker login -u ${DOCKER_HUB_USER} -p ${DOCKER_HUB_PASSWORD}"
-                      sh "docker build -t jefersonaraujo/questcode-frontend:0.14 ./frontend --build-arg NPM_ENV='staging'  "
-                      sh "docker push jefersonaraujo/questcode-frontend:0.14"       
+                      sh "docker build -t jefersonaraujo/questcode-frontend:0.1.4 ./frontend --build-arg NPM_ENV='staging'  "
+                      sh "docker push jefersonaraujo/questcode-frontend:0.1.4"       
                 }
               
                
@@ -34,8 +34,10 @@ podTemplate(
                 echo "Inicializando Deploy com Helm"
                 sh 'ls -ltra'
                 sh 'helm init --client-only'
-                sh 'helm repo list'
+                sh 'helm repo add questcode http://helm-chartmuseum:8080'               
+                sh 'helm search questcode'
                 sh 'helm repo update'
+                sh 'helm upgrade staging-frontend questcode/frontend --set image.tag=0.1.4'
 
             }
    
