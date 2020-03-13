@@ -23,6 +23,7 @@ podTemplate(
         def HELM_DEPLOY_NAME  
         def CHARTMUSEUM_URL = "http://helm-chartmuseum:8080"
         def INGRESS_HOST = "questcode.org"
+        def NODE_PORT = "30080"
 
         stage('Checkout') {
             echo "Inicializando Clone do Repositorio"
@@ -37,6 +38,7 @@ podTemplate(
                 KUBE_NAMESPACE = "staging"
                 ENVIRONMENT = "staging"
                 IMAGE_POSFIX = "-RC"
+                NODE_PORT = "31080"
                 INGRESS_HOST = "staging.questcode.org"
             } else {
                 def error = "Nao existe pipeline para a branch ${GIT_BRANCH}"
@@ -46,7 +48,7 @@ podTemplate(
             HELM_DEPLOY_NAME = KUBE_NAMESPACE + "-frontend"
             //REPOS = git credentialsId: 'Github', url: GIT_REPOS_URL     
             //IMAGE_VERSION = sh returnStdout: true, script: 'sh ./frontend/read-package-version.sh'
-            //IMAGE_VERSION = IMAGE_VERSION.trim() + IMAGE_POSFIX          
+            IMAGE_VERSION = IMAGE_VERSION.trim() + IMAGE_POSFIX          
         }
         stage('Package') {
             container('docker-container') {                
@@ -69,9 +71,9 @@ podTemplate(
                     helm repo update                    
                 """
                 try {
-                    sh "helm upgrade --namespace=${KUBE_NAMESPACE} ${HELM_DEPLOY_NAME} ${HELM_CHART_NAME} --set image.tag=${IMAGE_VERSION} --set ingress.hosts[0]=${INGRESS_HOST}"
+                    sh "helm upgrade --namespace=${KUBE_NAMESPACE} ${HELM_DEPLOY_NAME} ${HELM_CHART_NAME} --set image.tag=${IMAGE_VERSION} --set service.node Port=${NODE_PORT} --set ingress.hosts[0]=${INGRESS_HOST}"
                 } catch(Exception e) {
-                    sh "helm install --namespace=${KUBE_NAMESPACE} --name ${HELM_DEPLOY_NAME} ${HELM_CHART_NAME} --set image.tag=${IMAGE_VERSION} --set ingress.hosts[0]=${INGRESS_HOST}"
+                    sh "helm install --namespace=${KUBE_NAMESPACE} --name ${HELM_DEPLOY_NAME} ${HELM_CHART_NAME} --set image.tag=${IMAGE_VERSION} --set service.node Port=${NODE_PORT}  --set ingress.hosts[0]=${INGRESS_HOST}"
                 }              
 
             }
