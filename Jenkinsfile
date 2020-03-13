@@ -17,7 +17,7 @@ podTemplate(
         def KUBE_NAMESPACE
         def IMAGE_NAME = "questcode-frontend"
         def ENVIRONMENT 
-        def GIT_REPOS_URL = "https://github.com/jefersonaraujo/missaodevops.git"
+        def GIT_REPOS_URL = "https://github.com/jefersonaraujo/questcode-frontend.git"
         def GIT_BRANCH 
         def HELM_CHART_NAME = "questcode/frontend"
         def HELM_DEPLOY_NAME  
@@ -47,7 +47,7 @@ podTemplate(
             }
             HELM_DEPLOY_NAME = KUBE_NAMESPACE + "-frontend"
             //REPOS = git credentialsId: 'Github', url: GIT_REPOS_URL     
-            IMAGE_VERSION = sh returnStdout: true, script: 'sh ./frontend/read-package-version.sh'
+            IMAGE_VERSION = sh returnStdout: true, script: 'sh  read-package-version.sh'
             IMAGE_VERSION = IMAGE_VERSION.trim() + IMAGE_POSFIX          
         }
         stage('Package') {
