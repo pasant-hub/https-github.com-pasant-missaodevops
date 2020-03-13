@@ -16,17 +16,34 @@ podTemplate(
         def IMAGE_POSFIX = ""
         def KUBE_NAMESPACE
         def IMAGE_NAME = "questcode-frontend"
-        def ENVIRONMENT = "staging"
+        def ENVIRONMENT 
         def GIT_REPOS_URL = "https://github.com/jefersonaraujo/missaodevops.git"
         def GIT_BRANCH 
         def HELM_CHART_NAME = "questcode/frontend"
-        def HELM_DEPLOY_NAME
+        def HELM_DEPLOY_NAME  
         def CHARTMUSEUM_URL = "http://helm-chartmuseum:8080"
         def INGRESS_HOST = "questcode.org"
 
         stage('Checkout') {
             echo "Inicializando Clone do Repositorio"
             REPOS = checkout([$class: 'GitSCM', branches: [[name: '*/master'], [name: '*/develop']], doGenerateSubmoduleConfigurations: false, extensions: [], submoduleCfg: [], userRemoteConfigs: [[credentialsId: 'Github', url: GIT_REPOS_URL]]])
+            REPOS = checkout scm
+            GIT_BRANCH = REPOS.GIT_BRANCH
+            // Com base na branch, direciona ao ambiente correto
+            if(GIT_BRANCH.equals("master")){
+                KUBE_NAMESPACE = "prod"
+                ENVIRONMENT = "production"
+            } else if (GIT_BRANCH.equals("develop")) {
+                KUBE_NAMESPACE = "staging"
+                ENVIRONMENT = "staging"
+                IMAGE_POSFIX = "-RC"
+                INGRESS_HOST = "staging.questcode.org"
+            } else {
+                def error = "Nao existe pipeline para a branch ${GIT_BRANCH}"
+                echo error
+                throw new Exception(error)
+            }
+            HELM_DEPLOY_NAME = KUBE_NAMESPACE + "-frontend"
             //REPOS = git credentialsId: 'Github', url: GIT_REPOS_URL     
             //IMAGE_VERSION = sh returnStdout: true, script: 'sh ./frontend/read-package-version.sh'
             //IMAGE_VERSION = IMAGE_VERSION.trim() + IMAGE_POSFIX          
@@ -49,9 +66,13 @@ podTemplate(
                 sh """
                     helm init --client-only
                     helm repo add questcode ${CHARTMUSEUM_URL}
-                    helm repo update
-                    helm upgrade staging-frontend questcode/frontend --set image.tag=${IMAGE_VERSION}
-                """              
+                    helm repo update                    
+                """
+                try {
+                    sh "helm upgrade --namespace=${KUBE_NAMESPACE} ${HELM_DEPLOY_NAME} ${HELM_CHART_NAME} --set image.tag=${IMAGE_VERSION} --set ingress.hosts[0]=${INGRESS_HOST}"
+                } catch(Exception e) {
+                    sh "helm install --namespace=${KUBE_NAMESPACE} --name ${HELM_DEPLOY_NAME} ${HELM_CHART_NAME} --set image.tag=${IMAGE_VERSION} --set ingress.hosts[0]=${INGRESS_HOST}"
+                }              
 
             }
    
