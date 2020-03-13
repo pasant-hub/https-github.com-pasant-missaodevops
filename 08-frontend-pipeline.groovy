@@ -8,16 +8,22 @@ podTemplate(
     volumes: [hostPathVolume(hostPath: '/var/run/docker.sock', mountPath: '/var/run/docker.sock')],
 ) {
     node('questcode') {
-        stage('Build') {
-            echo "Inicializando Build"
-            sh 'ls -ltra'
+        def repos
+        stage('Checkout') {
+            echo "Inicializando Clone do Repositorio"
+            repos = git credentialsId: 'Github', url: 'https://github.com/jefersonaraujo/missaodevops.git'
+            echo repos.toString()          
         }
         stage('Package') {
-            container('docker-container') {
-                sh 'docker images'
-                echo "Inicializando Package"
-                checkout([$class: 'GitSCM', branches: [[name: '*/master']], doGenerateSubmoduleConfigurations: false, extensions: [], submoduleCfg: [], userRemoteConfigs: [[credentialsId: 'Github', url: 'https://github.com/jefersonaraujo/missaodevops.git']]])
-                sh 'ls -ltra'
+            container('docker-container') {                
+                echo "Inicializando empacotamento com Docker"
+                withCredentials([usernamePassword(credentialsId: 'dockerhub', passwordVariable: 'DOCKER_HUB_PASSWORD', usernameVariable: 'DOCKER_HUB_USER')]) {
+                      sh "docker login -u ${DOCKER_HUB_USER} -p ${DOCKER_HUB_PASSWORD}"
+                      sh "docker build -t jefersonaraujo/questcode-frontend:0.14 ./frontend --build-arg NPM_ENV='staging'  "
+                      sh "docker push jefersonaraujo/questcode-frontend:0.14"       
+                }
+              
+               
             }
         }
         stage('Deploy') {
@@ -28,4 +34,3 @@ podTemplate(
 } 
 
 
- 
