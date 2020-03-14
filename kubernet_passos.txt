@@ -337,40 +337,10 @@ http://SEU_IP:30808/configure
 http://SEU_IP:30808/credentials/store/system/domain/_/newCredentials
 
 
-Depois disso, teste o pipeline. Segue meu pipeline:
-
-podTemplate(
-    name: 'questcode',
-    namespace: 'devops', 
-    label: 'questcode', 
-    containers: [
-            containerTemplate(args: 'cat', command: '/bin/sh -c', image: 'docker', livenessProbe: containerLivenessProbe(execArgs: '', failureThreshold: 0, initialDelaySeconds: 0, periodSeconds: 0, successThreshold: 0, timeoutSeconds: 0), name: 'docker-container', resourceLimitCpu: '', resourceLimitMemory: '', resourceRequestCpu: '', resourceRequestMemory: '', ttyEnabled: true, workingDir: '/home/jenkins/agent')
-    ],
-    volumes: [hostPathVolume(hostPath: '/var/run/docker.sock', mountPath: '/var/run/docker.sock')],
-) {
-    node('questcode') {
-        stage('Build') {
-            echo "Inicializando Build"
-            sh 'ls -ltra'
-        }
-        stage('Package') {
-            container('docker-container') {
-                sh 'docker images'
-                echo "Inicializando Package"
-                sh 'ls -ltra'
-            }
-        }
-        stage('Deploy') {
-            echo "Inicializando Deploy"
-            sh 'ls -ltra'
-        }
-    }
-} 
-Agora vou conseguir continuar o curso \o/.
-
-JD
+ 
 -----------------
 
+Traefik Install
 
 
 
